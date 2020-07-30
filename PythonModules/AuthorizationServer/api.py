@@ -15,7 +15,6 @@ import jwt
 import time
 import os
 import base64
-from werkzeug.utils import secure_filename
 
 ALLOWED_EXTENSIONS = { 'png', 'jpg', 'jpeg'}
 app = Flask(__name__)
@@ -27,7 +26,7 @@ clientKey = ""
 
 @app.route('/teachme/')
 def keygen():
-    data = {'key': app.config['PUBLIC_KEY']} 
+    data = {'key': app.config['PUBLIC_KEY']}
     data = json.dumps(data)
     resp = Response(data,status=200,\
                 mimetype='application/json')
@@ -50,7 +49,7 @@ def receiveClientKey():
     resp = Response(data, status=200,\
                     mimetype='application/json')
     return resp
-    
+
 
 @app.route('/teachme/login', methods=['POST'])
 def authenticate():
@@ -62,7 +61,7 @@ def authenticate():
             if user != None:
                 if checkPassword(password, user['password']):
                     message =  "Access Granted"
-                    token = generateToken({'_id': str(user['_id']), 'accountType': user['accountType']}, 
+                    token = generateToken({'_id': str(user['_id']), 'accountType': user['accountType']},
                                           app.config['PRIVATE_KEY'])
                     data = {'message': message, 'token': token}
                     status = 200
@@ -72,7 +71,7 @@ def authenticate():
             else:
                 data = {'message': "No User Record Found. Please SignUp"}
                 status = 401
-                
+
         except Exception as e:
             print(e)
             data= {'message': "Server Error"}
@@ -91,14 +90,14 @@ def authenticate():
     ##cipher = PKCS1_OAEP.new(app.config['JWT_SECRET_KEY'])
     ##message = cipher.decrypt(message)
     ##message = rsa.decrypt(message, rsa.PrivateKey.load_pkcs1(app.config['JWT_SECRET_KEY']))
-    
+
     return createResponse(data, status)
 
 @app.route('/teachme/profile_picture/<string:filename>')
 def getImage(filename):
     return send_file(os.path.join(app.config['UPLOAD_FOLDER'], "profile_pictures\\"+ filename), mimetype='image/jpeg')
-    
-    
+
+
 
 @app.route('/teachme/register', methods=['POST'])
 def register():
@@ -115,7 +114,7 @@ def register():
             identityDoc = request.form['identityDoc']
         try:
            _id = addUser(email, password, accountType)
-           
+
            with open(os.path.join(app.config['UPLOAD_FOLDER'], "profile_pictures\\"+str(_id)+".jpg"), "wb") as imagefile:
                imagefile.write(base64.decodebytes(profile_picture.encode('ascii')))
            profile_picture = "http://192.168.18.55:3000/teachme/profile_picture/"+str(_id)+".jpg"
@@ -124,7 +123,7 @@ def register():
                    with open(os.path.join(app.config['UPLOAD_FOLDER'], "identity_documents\\"+str(_id)+".jpg"), "wb") as imagefile:
                        imagefile.write(base64.decodebytes(identityDoc.encode('ascii')))
                    identityDoc = "http://192.168.18.55:3000/teachme/identity_document/"+str(_id )+".jpg"
-                   
+
                    _id = addTeacher(_id, profile_picture, name, surname, dateOfBirth, phone, identityDoc)
                else:
                    _id = addStudent(_id, profile_picture, name, surname, dateOfBirth, phone)
@@ -133,7 +132,7 @@ def register():
                deleteUser(email)
                data= {'message': str(e)}
                status = 500
-           token = generateToken({'_id': str(_id), 'accountType': accountType}, 
+           token = generateToken({'_id': str(_id), 'accountType': accountType},
                                   app.config['PRIVATE_KEY'])
            data = {'message': 'Success', 'token': token}
            status = 200
@@ -145,9 +144,9 @@ def register():
         print(e)
         data= {'message': 'Bad Request'}
         status = 400
-        
+
     return createResponse(data, status)
-    
+
 
 def createResponse(data, status_code):
     data = json.dumps(data)
