@@ -29,6 +29,7 @@ const teacherSchema = {
     bsonType: "object",
     required: [
       "_id",
+      "profile_picture",
       "name",
       "surname",
       "dateOfBirth",
@@ -75,6 +76,9 @@ const teacherSchema = {
       status: {
         bsonType: "string",
       },
+      class_ids: {
+        bsonType: "array",
+      },
     },
   },
 };
@@ -84,6 +88,7 @@ const studentSchema = {
     bsonType: "object",
     required: [
       "_id",
+      "profile_picture",
       "name",
       "surname",
       "dateOfBirth",
@@ -129,6 +134,42 @@ const studentSchema = {
   },
 };
 
+const classSchema = {
+  $jsonSchema: {
+    bsonType: "object",
+    required: ["_id", "level", "subject"],
+    properties: {
+      _id: {
+        bsonType: "objectId",
+      },
+      level: {
+        bsonType: "string",
+      },
+      subject: {
+        bsonType: "string",
+      },
+    },
+  },
+};
+
+const conversationsSchema = {
+  $jsonSchema: {
+    bsonType: "object",
+    required: ["_id", "teacher_id", "student_id"],
+    properties: {
+      _id: {
+        bsonType: "objectId",
+      },
+      teacher_id: {
+        bsonType: "objectId",
+      },
+      student_id: {
+        bsonType: "objectId",
+      },
+    },
+  },
+};
+
 db.createCollection("authentication", {
   autoIndexId: true,
   validator: authenticationSchema,
@@ -148,3 +189,64 @@ db.createCollection("Student", {
   validator: studentSchema,
   validationLevel: "strict",
 });
+
+db.createCollection("Classes", {
+  autoIndexId: true,
+  validator: classSchema,
+  validationLevel: "strict",
+});
+
+db.createCollection("Conversations", {
+  autoIndexId: true,
+  validator: conversationsSchema,
+  validationLevel: "strict",
+});
+
+db.Conversations.createIndex(
+  { teacher_id: 1, student_id: 1 },
+  { unique: true }
+);
+
+db.createCollection("Messages");
+db.Messages.createIndex({ conversationId: 1, createdAt: 1 });
+
+const initialClasses = [
+  {
+    level: "1",
+    subject: "Maths",
+  },
+  {
+    level: "2A",
+    subject: "Physics",
+  },
+  {
+    level: "2A",
+    subject: "Economics",
+  },
+  {
+    level: "2B",
+    subject: "Islamiyat",
+  },
+  {
+    level: "2B",
+    subject: "English",
+  },
+  {
+    level: "3A",
+    subject: "Biology",
+  },
+  {
+    level: "3A",
+    subject: "Accounting",
+  },
+  {
+    level: "3B",
+    subject: "Maths",
+  },
+  {
+    level: "3B",
+    subject: "Chemistry",
+  },
+];
+
+db.Classes.insertMany(initialClasses);

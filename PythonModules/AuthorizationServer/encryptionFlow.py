@@ -27,6 +27,7 @@ def generateToken(payload, private_key):
 
 def verifyToken(token, public_key):
     token = base64.b64decode(token.encode('ascii'))
+    print(token)
     try:
         jwt.decode(token, public_key, algorithms='RS256')
         return True

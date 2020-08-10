@@ -22,7 +22,6 @@ cors = CORS(app)
 app.config.from_object('config')
 app.config['UPLOAD_FOLDER'] = './images/'
 
-clientKey = ""
 
 @app.route('/teachme/')
 def keygen():
@@ -32,23 +31,23 @@ def keygen():
                 mimetype='application/json')
     return resp
 
-@app.route('/teachme/secure', methods=['POST'])
-def receiveClientKey():
-    global clientKey
-    try:
-        key = request.json['key']
-        try:
-            clientKey = decrypt(key, app.config['PRIVATE_KEY'])
-            print(clientKey)
-            message = "Success"
-        except:
-            message = "Server Error"
-    except:
-        message = "Bad Request"
-    data = json.dumps({'message': message})
-    resp = Response(data, status=200,\
-                    mimetype='application/json')
-    return resp
+#@app.route('/teachme/secure', methods=['POST'])
+#def receiveClientKey():
+#    global clientKey
+#    try:
+#        key = request.json['key']
+#        try:
+#            clientKey = decrypt(key, app.config['PRIVATE_KEY'])
+#            print(clientKey)
+#            message = "Success"
+#        except:
+#            message = "Server Error"
+#    except:
+#        message = "Bad Request"
+#    data = json.dumps({'message': message})
+#    resp = Response(data, status=200,\
+#                    mimetype='application/json')
+#    return resp
 
 
 @app.route('/teachme/login', methods=['POST'])
@@ -117,12 +116,12 @@ def register():
 
            with open(os.path.join(app.config['UPLOAD_FOLDER'], "profile_pictures\\"+str(_id)+".jpg"), "wb") as imagefile:
                imagefile.write(base64.decodebytes(profile_picture.encode('ascii')))
-           profile_picture = "http://192.168.18.55:3000/teachme/profile_picture/"+str(_id)+".jpg"
+           profile_picture = "http://"+app.config['HOST_NAME']+":3000/teachme/profile_picture/"+str(_id)+".jpg"
            try:
                if accountType == 'Teacher':
                    with open(os.path.join(app.config['UPLOAD_FOLDER'], "identity_documents\\"+str(_id)+".jpg"), "wb") as imagefile:
                        imagefile.write(base64.decodebytes(identityDoc.encode('ascii')))
-                   identityDoc = "http://192.168.18.55:3000/teachme/identity_document/"+str(_id )+".jpg"
+                   identityDoc = "http://"+app.config['HOST_NAME']+":3000/teachme/identity_document/"+str(_id )+".jpg"
 
                    _id = addTeacher(_id, profile_picture, name, surname, dateOfBirth, phone, identityDoc)
                else:

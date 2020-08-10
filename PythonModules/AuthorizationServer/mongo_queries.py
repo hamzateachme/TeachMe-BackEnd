@@ -7,14 +7,14 @@ Created on Mon Jul 27 18:13:32 2020
 import pymongo
 from datetime import datetime
 
-
+from config import PROFILE_SERVER
 from encryptionFlow import hashPassword
 profileServer = "localhost"
 client = pymongo.MongoClient("localhost", 27017)
 
 
 def addTeacher(_id, profile_picture, name, surname, dateOfBirth, phone, identityDoc):
-    profileDatabase = pymongo.MongoClient(profileServer, 27017)
+    profileDatabase = pymongo.MongoClient(PROFILE_SERVER, 27017)
     db1 = profileDatabase['TeachMe']
     collection = db1['Teacher']
     dateOfBirth = datetime.strptime(dateOfBirth, '%Y-%m-%dT%H:%M:%S.%f%z')
@@ -37,7 +37,7 @@ def addTeacher(_id, profile_picture, name, surname, dateOfBirth, phone, identity
 
 
 def addStudent(_id,profile_picture, name, surname, dateOfBirth, phone):    
-    profileDatabase = pymongo.MongoClient(profileServer, 27017)
+    profileDatabase = pymongo.MongoClient(PROFILE_SERVER, 27017)
     db1 = profileDatabase['TeachMe']
     collection = db1['Student']
     dateOfBirth = datetime.strptime(dateOfBirth, '%Y-%m-%dT%H:%M:%S.%f%z')
@@ -62,7 +62,6 @@ def addUser(email, password, accountType):
     collection = db['authentication']
     try:
         password = hashPassword(password)
-        accountType = 'Student'
         _id = collection.insert_one({'email': email, 'password': password, 'accountType': accountType}).inserted_id
         return _id
     except Exception as e:
