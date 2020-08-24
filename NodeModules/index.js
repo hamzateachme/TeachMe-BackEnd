@@ -1,6 +1,6 @@
 var app = require("express")();
 var http = require("http").createServer(app);
-var io = require("socket.io")(http, { pingInterval: 500000 });
+var io = require("socket.io")(http);
 const redisAdapter = require("socket.io-redis");
 const redis = require("redis");
 const { MongoClient, ObjectID } = require("mongodb");
@@ -17,6 +17,37 @@ try {
 } catch (e) {
   console.log("Error:", e.stack);
 }
+
+var sendNotification = function (data) {
+  var headers = {
+    "Content-Type": "application/json; charset=utf-8",
+    Authorization: "Basic YWU4YmRlM2MtMjhjZi00YTI5LWFhYjktNDhkOTJhNGMyMzE3",
+  };
+
+  var options = {
+    host: "onesignal.com",
+    port: 443,
+    path: "/api/v1/notifications",
+    method: "POST",
+    headers: headers,
+  };
+
+  var https = require("https");
+  var req = https.request(options, function (res) {
+    res.on("data", function (data) {
+      console.log("Response:");
+      console.log(JSON.parse(data));
+    });
+  });
+
+  req.on("error", function (e) {
+    console.log("ERROR:");
+    console.log(e);
+  });
+
+  req.write(JSON.stringify(data));
+  req.end();
+};
 
 async function addConversation(teacher_id, student_id) {
   const client = await MongoClient.connect(url);
@@ -142,18 +173,27 @@ app.get("/notifier", (req, res) => {
 
 // middleware
 io.use((socket, next) => {
+  console.log(socket.handshake.query);
   const token = socket.handshake.query.token;
   var keyByte = new Buffer(token, "base64");
   keyByte = keyByte.toString("ascii");
   try {
     var decoded = jwt.verify(keyByte, key);
-    onlineUsers.set(decoded._id, socket.id, redis.print);
+    onlineUsers.hmset(decoded._id, "socket", socket.id, redis.print);
+    onlineUsers.hmget(decoded._id, "socket", function (err, res) {
+      if (err) {
+        console.log(err);
+      } else {
+        console.log(res);
+      }
+    });
+    //onlineUsers.set(decoded._id, socket.id, redis.print);
     socket["userId"] = decoded._id;
     console.log("user Id: " + decoded._id);
     if (socket.handshake.query.classes !== "undefined") {
       const classes = socket.handshake.query.classes.split(",");
-      console.log(classes);
       for (i = 0; i < classes.length; i++) {
+        onlineUsers.srem(classes[i], socket.userId);
         socket.join(classes[i], () => {
           let rooms = Object.keys(socket.rooms);
           console.log("A user has joined " + rooms);
@@ -169,15 +209,19 @@ io.use((socket, next) => {
 
 io.on("connection", (socket) => {
   console.log("A user connected");
-  /**io.to(socket.id).emit("chat message", "Yout user id is " + userId);
-  io.to(socket.id).emit("userId", userId);*/
-  socket.conn.on("packet", function (packet) {
+  /**socket.conn.on("packet", function (packet) {
     if (packet.type === "ping") console.log("received ping");
-  });
-  socket.on("disconnect", () => {
+  });*/
+  socket.on("disconnecting", () => {
     console.log("user disconnected");
     console.log("userId: " + socket.userId);
     console.log(socket.id);
+    const rooms = Object.keys(socket.rooms);
+    for (i = 0; i < rooms.length; i++) {
+      if (rooms[i] !== socket.id) {
+        onlineUsers.sadd(rooms[i], socket.userId, redis.print);
+      }
+    }
     onlineUsers.del(socket.userId, function (err, reply) {
       if (err) {
         console.log(err);
@@ -185,28 +229,36 @@ io.on("connection", (socket) => {
         console.log(reply);
       }
     });
-    /**client.keys("*", function (err, keys) {
-      if (err) throw err;
-      console.log(keys);
-    });*/
-  });
-
-  socket.on("registerUser", (user) => {
-    onlineUsers.set(user._id, socket.id, redis.print);
   });
 
   socket.on("notify", (msg) => {
-    console.log(msg);
     io.to(msg.classId).emit("notification", {
       message: "A student wants to connect with you.",
       studentId: msg.studentId,
       classId: msg.classId,
     });
+    onlineUsers.smembers(msg.classId, function (err, res) {
+      if (err) {
+        console.log(err);
+      } else {
+        console.log(res);
+        if (res.length > 0) {
+          const message = {
+            app_id: "8a316945-1973-4a08-9dab-7d0e162b15bb",
+            contents: { en: "A Student Wants to connect with you." },
+            include_external_user_ids: res,
+            data: { studentId: msg.studentId, classId: msg.classId },
+            collapse_id: "Session Notification",
+          };
+          sendNotification(message);
+        }
+      }
+    });
   });
 
   socket.on("beginSession", (msg) => {
     console.log(msg);
-    onlineUsers.get(msg.studentId, async function (err, value) {
+    onlineUsers.hmget(msg.studentId, "socket", async function (err, value) {
       if (err) {
         console.log(err);
       } else {
@@ -231,6 +283,7 @@ io.on("connection", (socket) => {
     for (i = 0; i < rooms.length; i++) {
       if (rooms[i] !== socket.id) {
         socket.leave(rooms[i]);
+        onlineUsers.srem(rooms[i], socket.userId);
       }
     }
   });
@@ -249,7 +302,7 @@ io.on("connection", (socket) => {
   socket.on("chat message", (msg) => {
     console.log(msg);
     const receiver = msg.to;
-    onlineUsers.get(receiver, function (err, value) {
+    onlineUsers.hmget(receiver, "socket", function (err, value) {
       if (err) {
         console.log("error");
         console.log(err);
